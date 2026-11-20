@@ -1,0 +1,24 @@
+name: build-macos
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build universal Release (ad-hoc signed)
+        run: |
+          xcodebuild -project MacRemoteUnlock.xcodeproj -scheme MacRemoteUnlock \
+            -configuration Release -derivedDataPath build \
+            ARCHS="x86_64 arm64" ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" \
+            build | tail -20
+          APP=build/Build/Products/Release/MacRemoteUnlock.app
+          lipo -info "$APP/Contents/MacOS/MacRemoteUnlock"
+          codesign -dv "$APP" 2>&1 | head -5
+          mkdir out && ditto -c -k --keepParent "$APP" out/MacRemoteUnlock.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MacRemoteUnlock
+          path: out/MacRemoteUnlock.zip
