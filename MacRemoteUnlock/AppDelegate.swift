@@ -39,20 +39,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         if menu == remoteMenu {
             let ips = remote.tailscaleIPs()
-            let host = ips.first ?? "not connected to Tailscale"
+            let host = ips.first ?? "non connecté à Tailscale"
             if showTokenInMenu {
-                remoteURLLabel?.title = "http://\(host):\(remote.port)/  token: \(remote.token)"
+                remoteURLLabel?.title = "http://\(host):\(remote.port)/  jeton : \(remote.token)"
             } else {
                 remoteURLLabel?.title = "http://\(host):\(remote.port)/"
             }
             showTokenItem?.state = showTokenInMenu ? .on : .off
             lockToggleItem?.state = remote.lockScreenEnabled ? .on : .off
             if let url = remote.funnelURL {
-                funnelURLLabel?.title = "Funnel: \(url)"
+                funnelURLLabel?.title = "Funnel : \(url)"
             } else if remote.funnelEnabled {
-                funnelURLLabel?.title = "Funnel: starting…"
+                funnelURLLabel?.title = "Funnel : démarrage…"
             } else {
-                funnelURLLabel?.title = "Funnel: disabled"
+                funnelURLLabel?.title = "Funnel : désactivé"
             }
             funnelToggleItem?.state = remote.funnelEnabled ? .on : .off
             funnelOpenItem?.isHidden = !remote.funnelEnabled
@@ -71,9 +71,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.isScreenLocked() ?? false
         }
         remote.onApprove = { [weak self] in
-            var message = "unlock approved"
+            var message = "déverrouillage approuvé"
             DispatchQueue.main.sync {
-                message = self?.remoteUnlock() ?? "unlock approved"
+                message = self?.remoteUnlock() ?? "déverrouillage approuvé"
             }
             return message
         }
@@ -165,8 +165,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: - Unlock
 
     func remoteUnlock() -> String {
-        guard isScreenLocked() else { return "Mac 未处于锁定状态" }
-        guard let password = fetchPassword(warn: false) else { return "未设置密码（菜单：Set Login Password…）" }
+        guard isScreenLocked() else { return "Le Mac n’est pas verrouillé" }
+        guard let password = fetchPassword(warn: false) else { return "Mot de passe non défini (menu : Définir le mot de passe de session…)" }
         log("unlock approved; state locked=\(isScreenLocked()) displaySleep=\(displaySleep) systemSleep=\(systemSleep) inScreensaver=\(inScreensaver)")
         if displaySleep {
             wakeAndUnlock(password)
@@ -182,7 +182,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self?.performRemoteUnlock(password)
             })
         }
-        return "已批准，正在输入密码…"
+        return "Approuvé, saisie du mot de passe…"
     }
 
     private func wakeAndUnlock(_ password: String) {
@@ -420,8 +420,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard status == errSecSuccess else {
             let err = SecCopyErrorMessageString(status, nil)
             log("storePassword FAILED: OSStatus \(status) \(err as String? ?? "")")
-            errorModal("Failed to store password to Keychain",
-                       info: "OSStatus \(status): \(err as String? ?? "unknown")")
+            errorModal("Impossible d’enregistrer le mot de passe dans le trousseau",
+                       info: "OSStatus \(status) : \(err as String? ?? "inconnu")")
             return
         }
         log("storePassword OK (default ACL, Always Allow once)")
@@ -441,7 +441,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if status == errSecItemNotFound {
             print("Password is not stored")
             if warn {
-                errorModal("Password not set. Use Set Password… in the menu.")
+                errorModal("Mot de passe non défini. Utilisez « Définir le mot de passe de session… » dans le menu.")
             }
             return nil
         }
@@ -453,11 +453,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 return nil
             }
             let info = SecCopyErrorMessageString(status, nil)
-            errorModal("Failed to retrieve password", info: info as String? ?? "Status \(status)")
+            errorModal("Impossible de lire le mot de passe", info: info as String? ?? "Status \(status)")
             return nil
         }
         guard let data = item as? Data else {
-            errorModal("Failed to convert password")
+            errorModal("Impossible de convertir le mot de passe")
             return nil
         }
         return String(data: data, encoding: .utf8)!
@@ -492,11 +492,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func openFunnelPage() {
         if remote.funnelURL == nil {
             remote.setupFunnelIfNeeded() // kick off (re)configuration
-            errorModal("Funnel 正在配置中，请稍后重试。若仍未生效，请检查 Tailscale 连接。")
+            errorModal("Funnel est en cours de configuration, réessayez dans un instant. Si cela ne fonctionne toujours pas, vérifiez la connexion Tailscale.")
             return
         }
         guard let urlString = remote.funnelURL, let url = URL(string: urlString) else {
-            errorModal("Funnel URL 无效")
+            errorModal("URL Funnel invalide")
             return
         }
         NSWorkspace.shared.open(url)
@@ -505,9 +505,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func setRemoteToken() {
         let msg = NSAlert()
         msg.addButton(withTitle: "OK")
-        msg.addButton(withTitle: "Cancel")
-        msg.messageText = "Set Access Token"
-        msg.informativeText = "至少 6 位（数字和字母均可）。手机浏览器解锁时需输入此令牌。"
+        msg.addButton(withTitle: "Annuler")
+        msg.messageText = "Définir le jeton d’accès"
+        msg.informativeText = "Au moins 6 caractères (chiffres et lettres). Ce jeton est demandé sur la page de déverrouillage du téléphone."
         msg.window.title = "MacRemoteUnlock"
         let txt = NSTextField(frame: NSRect(x: 0, y: 0, width: 120, height: 24))
         txt.stringValue = remote.token
@@ -518,7 +518,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if v.count >= 6 {
                 remote.token = v
             } else {
-                errorModal("Token must be at least 6 characters")
+                errorModal("Le jeton doit contenir au moins 6 caractères")
             }
         }
     }
@@ -526,8 +526,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func setRemotePort() {
         let msg = NSAlert()
         msg.addButton(withTitle: "OK")
-        msg.addButton(withTitle: "Cancel")
-        msg.messageText = "Set HTTP Server Port"
+        msg.addButton(withTitle: "Annuler")
+        msg.messageText = "Définir le port du serveur HTTP"
         msg.window.title = "MacRemoteUnlock"
         let txt = NSTextField(frame: NSRect(x: 0, y: 0, width: 120, height: 24))
         txt.stringValue = String(remote.port)
@@ -542,7 +542,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     remote.start()
                 }
             } else {
-                errorModal("Invalid port")
+                errorModal("Port invalide")
             }
         }
     }
@@ -550,9 +550,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func askPassword() {
         let msg = NSAlert()
         msg.addButton(withTitle: "OK")
-        msg.addButton(withTitle: "Cancel")
-        msg.messageText = "Set Login Password"
-        msg.informativeText = "Stored in your Keychain. Used to unlock the screen when you approve from your phone."
+        msg.addButton(withTitle: "Annuler")
+        msg.messageText = "Définir le mot de passe de session"
+        msg.informativeText = "Enregistré dans votre trousseau. Sert à déverrouiller l’écran quand vous approuvez depuis votre téléphone."
         msg.window.title = "MacRemoteUnlock"
         let txt = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 20))
         msg.accessoryView = txt
@@ -615,30 +615,30 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: - Menu construction
 
     func constructMenu() {
-        let remoteItem = mainMenu.addItem(withTitle: "Remote Unlock", action: nil, keyEquivalent: "")
+        let remoteItem = mainMenu.addItem(withTitle: "Déverrouillage à distance", action: nil, keyEquivalent: "")
         remoteItem.submenu = remoteMenu
         remoteMenu.delegate = self
 
-        remoteURLLabel = remoteMenu.addItem(withTitle: "not started", action: nil, keyEquivalent: "")
-        funnelURLLabel = remoteMenu.addItem(withTitle: "Funnel: disabled", action: nil, keyEquivalent: "")
-        funnelToggleItem = remoteMenu.addItem(withTitle: "Enable Funnel (public URL)", action: #selector(toggleRemoteFunnel), keyEquivalent: "")
+        remoteURLLabel = remoteMenu.addItem(withTitle: "non démarré", action: nil, keyEquivalent: "")
+        funnelURLLabel = remoteMenu.addItem(withTitle: "Funnel : désactivé", action: nil, keyEquivalent: "")
+        funnelToggleItem = remoteMenu.addItem(withTitle: "Activer Funnel (URL publique)", action: #selector(toggleRemoteFunnel), keyEquivalent: "")
         funnelToggleItem?.state = remote.funnelEnabled ? .on : .off
-        funnelOpenItem = remoteMenu.addItem(withTitle: "Open Unlock Page (Funnel)…", action: #selector(openFunnelPage), keyEquivalent: "")
+        funnelOpenItem = remoteMenu.addItem(withTitle: "Ouvrir la page de déverrouillage (Funnel)…", action: #selector(openFunnelPage), keyEquivalent: "")
         funnelOpenItem?.isHidden = !remote.funnelEnabled
-        remoteMenu.addItem(withTitle: "Open Unlock Page…", action: #selector(openRemotePage), keyEquivalent: "")
-        remoteMenu.addItem(withTitle: "Set Access Token…", action: #selector(setRemoteToken), keyEquivalent: "")
-        showTokenItem = remoteMenu.addItem(withTitle: "Show Access Token", action: #selector(toggleShowToken), keyEquivalent: "")
+        remoteMenu.addItem(withTitle: "Ouvrir la page de déverrouillage…", action: #selector(openRemotePage), keyEquivalent: "")
+        remoteMenu.addItem(withTitle: "Définir le jeton d’accès…", action: #selector(setRemoteToken), keyEquivalent: "")
+        showTokenItem = remoteMenu.addItem(withTitle: "Afficher le jeton d’accès", action: #selector(toggleShowToken), keyEquivalent: "")
         showTokenItem?.state = showTokenInMenu ? .on : .off
-        remoteMenu.addItem(withTitle: "Set HTTP Server Port…", action: #selector(setRemotePort), keyEquivalent: "")
-        lockToggleItem = remoteMenu.addItem(withTitle: "Enable Remote Lock Screen", action: #selector(toggleRemoteLock), keyEquivalent: "")
+        remoteMenu.addItem(withTitle: "Définir le port du serveur HTTP…", action: #selector(setRemotePort), keyEquivalent: "")
+        lockToggleItem = remoteMenu.addItem(withTitle: "Activer le verrouillage à distance", action: #selector(toggleRemoteLock), keyEquivalent: "")
         lockToggleItem?.state = remote.lockScreenEnabled ? .on : .off
 
         mainMenu.addItem(NSMenuItem.separator())
-        mainMenu.addItem(withTitle: "Set Login Password…", action: #selector(askPassword), keyEquivalent: "")
-        launchAtLoginItem = mainMenu.addItem(withTitle: "Launch At Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        mainMenu.addItem(withTitle: "Définir le mot de passe de session…", action: #selector(askPassword), keyEquivalent: "")
+        launchAtLoginItem = mainMenu.addItem(withTitle: "Ouvrir à la connexion", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
         launchAtLoginItem?.state = isLaunchAtLogin() ? .on : .off
         mainMenu.addItem(NSMenuItem.separator())
-        mainMenu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        mainMenu.addItem(withTitle: "Quitter", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
         statusItem.menu = mainMenu
     }

@@ -481,7 +481,7 @@ final class RemoteUnlockServer {
             }
             print("RemoteUnlock: unlock request denied")
             send(fd, status: 200, contentType: "application/json",
-                 body: json(["ok": true, "message": "已拒绝"]))
+                 body: json(["ok": true, "message": "Refusé"]))
 
         case ("POST", "/lock"):
             guard tokenOK else {
@@ -493,7 +493,7 @@ final class RemoteUnlockServer {
             }
             // Respond before locking: the screen suspend may drop the connection.
             send(fd, status: 200, contentType: "application/json",
-                 body: json(["ok": true, "message": "已锁定"]))
+                 body: json(["ok": true, "message": "Verrouillé"]))
             lockScreen()
 
         default:
@@ -644,11 +644,11 @@ final class RemoteUnlockServer {
     private func htmlPage(macName: String) -> String {
         """
         <!DOCTYPE html>
-        <html lang="zh-CN">
+        <html lang="fr">
         <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-        <title>Mac 远程解锁</title>
+        <title>Déverrouillage du Mac</title>
         <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
@@ -695,8 +695,8 @@ final class RemoteUnlockServer {
         <div class="card">
           <div class="icon" id="icon">⏳</div>
           <h1>\(macName)</h1>
-          <div class="mac">远程解锁</div>
-          <div class="state" id="state">连接中…</div>
+          <div class="mac">Déverrouillage à distance</div>
+          <div class="state" id="state">Connexion…</div>
           <div id="actionArea"></div>
           <div class="msg" id="msg"></div>
           <div class="hint" id="hint"></div>
@@ -717,11 +717,11 @@ final class RemoteUnlockServer {
         function showTokenInput() {
           clearInterval(pollTimer); pollTimer = null;
           setIcon('🔐');
-          setState('请输入访问令牌');
+          setState('Saisissez le jeton d’accès');
           document.getElementById('actionArea').innerHTML =
             '<input type="password" autocomplete="off" maxlength="32" ' +
-            'placeholder="至少 6 位（数字/字母）" id="tokenInput">' +
-            '<button class="approve" onclick="submitToken()" style="margin-top:14px">验证</button>';
+            'placeholder="6 caractères minimum" id="tokenInput">' +
+            '<button class="approve" onclick="submitToken()" style="margin-top:14px">Valider</button>';
           document.getElementById('hint').textContent = '';
           setMsg('');
           var inp = document.getElementById('tokenInput');
@@ -731,7 +731,7 @@ final class RemoteUnlockServer {
 
         function submitToken() {
           var v = document.getElementById('tokenInput').value.trim();
-          if (v.length < 6) { setMsg('请输入至少 6 位数字或字母', 'err'); return; }
+          if (v.length < 6) { setMsg('Saisissez au moins 6 chiffres ou lettres', 'err'); return; }
           token = v;
           localStorage.setItem(TOKEN_KEY, token);
           setMsg('');
@@ -748,36 +748,36 @@ final class RemoteUnlockServer {
 
         function renderLocked() {
           setIcon('🔒');
-          setState('Mac 已锁定');
+          setState('Mac verrouillé');
           document.getElementById('actionArea').innerHTML =
-            '<button class="approve" id="approveBtn" onclick="approve()">批准解锁</button>' +
-            '<button class="secondary" onclick="refresh()">刷新状态</button>';
-          document.getElementById('hint').textContent = '仅在你本人准备使用 Mac 时批准';
+            '<button class="approve" id="approveBtn" onclick="approve()">Approuver le déverrouillage</button>' +
+            '<button class="secondary" onclick="refresh()">Actualiser</button>';
+          document.getElementById('hint').textContent = 'N’approuvez que si c’est vous qui allez utiliser le Mac';
         }
 
         function renderUnlocked() {
           setIcon('🔓');
-          setState('Mac 未锁定');
+          setState('Mac déverrouillé');
           document.getElementById('actionArea').innerHTML =
-            '<button class="danger" id="lockBtn" onclick="lockScreen()">锁定屏幕</button>' +
-            '<button class="secondary" onclick="refresh()">刷新状态</button>';
-          document.getElementById('hint').textContent = '若 Mac 上未开启「远程锁定屏幕」，锁定按钮将无效';
+            '<button class="danger" id="lockBtn" onclick="lockScreen()">Verrouiller l’écran</button>' +
+            '<button class="secondary" onclick="refresh()">Actualiser</button>';
+          document.getElementById('hint').textContent = 'Le bouton de verrouillage ne marche que si « Activer le verrouillage à distance » est coché sur le Mac';
         }
 
         function renderOffline() {
           setIcon('📡');
-          setState('无法连接 Mac');
+          setState('Impossible de joindre le Mac');
           document.getElementById('actionArea').innerHTML =
-            '<button class="secondary" onclick="startPolling()">重试</button>';
-          document.getElementById('hint').textContent = '请检查 Tailscale 连接';
+            '<button class="secondary" onclick="startPolling()">Réessayer</button>';
+          document.getElementById('hint').textContent = 'Vérifiez la connexion Tailscale';
         }
 
         function renderRateLimited() {
           setIcon('⏱️');
-          setState('尝试次数过多');
+          setState('Trop de tentatives');
           document.getElementById('actionArea').innerHTML =
-            '<button class="secondary" onclick="refresh()">重试</button>';
-          document.getElementById('hint').textContent = '请 1 分钟后再试';
+            '<button class="secondary" onclick="refresh()">Réessayer</button>';
+          document.getElementById('hint').textContent = 'Réessayez dans 1 minute';
           clearInterval(pollTimer);
           pollTimer = setInterval(poll, 10000); // slow polling; auto-recovers when lockout ends
         }
@@ -789,7 +789,7 @@ final class RemoteUnlockServer {
             if (r.status === 401) {
               localStorage.removeItem(TOKEN_KEY);
               showTokenInput();
-              setMsg('令牌无效，请重新输入', 'err');
+              setMsg('Jeton invalide, saisissez-le à nouveau', 'err');
               return;
             }
             if (!r.ok) { renderOffline(); return; }
@@ -804,44 +804,44 @@ final class RemoteUnlockServer {
 
         async function approve() {
           var btn = document.getElementById('approveBtn');
-          btn.disabled = true; btn.textContent = '处理中…';
+          btn.disabled = true; btn.textContent = 'En cours…';
           setMsg('');
           try {
             var r = await fetch('/approve?token=' + encodeURIComponent(token), { method: 'POST' });
             var d = await r.json();
             if (r.status === 429) {
-              setMsg('尝试次数过多，请 1 分钟后再试', 'err');
+              setMsg('Trop de tentatives, réessayez dans 1 minute', 'err');
               return;
             }
-            setMsg(d.message || (r.ok ? '已批准' : '请求失败'), r.ok ? 'ok' : 'err');
+            setMsg(d.message || (r.ok ? 'Approuvé' : 'Échec de la requête'), r.ok ? 'ok' : 'err');
           } catch (e) {
-            setMsg('网络错误', 'err');
+            setMsg('Erreur réseau', 'err');
           }
-          btn.disabled = false; btn.textContent = '批准解锁';
+          btn.disabled = false; btn.textContent = 'Approuver le déverrouillage';
         }
 
         async function lockScreen() {
           var btn = document.getElementById('lockBtn');
-          btn.disabled = true; btn.textContent = '处理中…';
+          btn.disabled = true; btn.textContent = 'En cours…';
           try {
             var r = await fetch('/lock?token=' + encodeURIComponent(token), { method: 'POST' });
             var d = await r.json();
             if (r.status === 403) {
-              setMsg('远程锁定屏幕未开启，请在 Mac 菜单中启用', 'err');
-              btn.disabled = false; btn.textContent = '锁定屏幕';
+              setMsg('Verrouillage à distance désactivé, activez-le dans le menu du Mac', 'err');
+              btn.disabled = false; btn.textContent = 'Verrouiller l’écran';
               return;
             }
             if (r.status === 401) {
               localStorage.removeItem(TOKEN_KEY);
               showTokenInput();
-              setMsg('令牌无效，请重新输入', 'err');
+              setMsg('Jeton invalide, saisissez-le à nouveau', 'err');
               return;
             }
-            if (r.status === 429) { setMsg('尝试次数过多，请 1 分钟后再试', 'err'); return; }
-            setMsg(d.message || (r.ok ? '已锁定' : '请求失败'), r.ok ? 'ok' : 'err');
+            if (r.status === 429) { setMsg('Trop de tentatives, réessayez dans 1 minute', 'err'); return; }
+            setMsg(d.message || (r.ok ? 'Verrouillé' : 'Échec de la requête'), r.ok ? 'ok' : 'err');
           } catch (e) {
-            setMsg('网络错误', 'err');
-            btn.disabled = false; btn.textContent = '锁定屏幕';
+            setMsg('Erreur réseau', 'err');
+            btn.disabled = false; btn.textContent = 'Verrouiller l’écran';
             return;
           }
           setTimeout(refresh, 1500); // poll will pick up the locked state
