@@ -17,7 +17,30 @@ jobs:
           APP=build/Build/Products/Release/MacRemoteUnlock.app
           lipo -info "$APP/Contents/MacOS/MacRemoteUnlock"
           codesign -dv "$APP" 2>&1 | head -5
-          mkdir out && ditto -c -k --keepParent "$APP" out/MacRemoteUnlock.zip
+          codesign --verify --deep --strict "$APP" && echo "codesign verify OK"
+      - name: Smoke test (launch app, hit phone page and API)
+        run: |
+          set -ex
+          APP=build/Build/Products/Release/MacRemoteUnlock.app
+          defaults write github.dongyuwei.macremoteunlock remoteToken ciTest123
+          "$APP/Contents/MacOS/MacRemoteUnlock" > app.log 2>&1 &
+          PID=$!
+          for i in $(seq 1 30); do curl -s -o /dev/null http://127.0.0.1:8123/ && break; sleep 1; done
+          curl -sf http://127.0.0.1:8123/ > page.html
+          grep -q 'lang="fr"' page.html
+          grep -q 'Approuver le déverrouillage' page.html
+          perl -CSD -ne '$f=1 if /\p{Han}/; END { exit($f ? 1 : 0) }' page.html
+          test "$(curl -s -o bad.json -w '%{http_code}' 'http://127.0.0.1:8123/status?token=wrong')" = 401
+          cat bad.json; echo
+          curl -sf 'http://127.0.0.1:8123/status?token=ciTest123' | tee status.json; echo
+          grep -q '"locked"' status.json
+          curl -sf -X POST 'http://127.0.0.1:8123/approve?token=ciTest123' | tee approve.json; echo
+          grep -q '"ok":true' approve.json
+          kill $PID || true
+          tail -20 app.log
+          echo "SMOKE TEST PASSED"
+      - name: Zip
+        run: mkdir -p out && ditto -c -k --keepParent build/Build/Products/Release/MacRemoteUnlock.app out/MacRemoteUnlock.zip
       - uses: actions/upload-artifact@v4
         with:
           name: MacRemoteUnlock

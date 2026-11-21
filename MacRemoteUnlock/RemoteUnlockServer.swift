@@ -377,7 +377,7 @@ final class RemoteUnlockServer {
         }
 
         guard let headerRange = buf.range(of: Data("\r\n\r\n".utf8)) else {
-            send(clientFD, status: 400, body: json(["error": "Bad Request"]))
+            send(clientFD, status: 400, body: json(["error": "requête invalide"]))
             return
         }
         let header = String(data: buf.subdata(in: buf.startIndex..<headerRange.lowerBound), encoding: .utf8) ?? ""
@@ -398,11 +398,11 @@ final class RemoteUnlockServer {
     private func process(_ fd: Int32, header: String, body: String) {
         let lines = header.components(separatedBy: "\r\n")
         guard let requestLine = lines.first else {
-            send(fd, status: 400, body: json(["error": "Bad Request"])); return
+            send(fd, status: 400, body: json(["error": "requête invalide"])); return
         }
         let parts = requestLine.components(separatedBy: " ")
         guard parts.count >= 2 else {
-            send(fd, status: 400, body: json(["error": "Bad Request"])); return
+            send(fd, status: 400, body: json(["error": "requête invalide"])); return
         }
         let method = parts[0]
         let rawTarget = parts[1]
@@ -423,11 +423,11 @@ final class RemoteUnlockServer {
 
         // --- Source IP restriction: Tailscale CGNAT (100.64.0.0/10) or localhost ---
         guard let remoteIP = peerIP(fd) else {
-            send(fd, status: 403, body: json(["error": "cannot determine source IP"])); return
+            send(fd, status: 403, body: json(["error": "impossible de déterminer l’adresse IP source"])); return
         }
         guard isAllowedSource(remoteIP) else {
             print("RemoteUnlock: blocked request from \(remoteIP)")
-            send(fd, status: 403, body: json(["error": "forbidden: not a Tailscale address"])); return
+            send(fd, status: 403, body: json(["error": "accès refusé : adresse non Tailscale"])); return
         }
 
         // --- Token check (except for GET / which serves the page itself) ---
@@ -438,13 +438,13 @@ final class RemoteUnlockServer {
 
         if tokenProtected {
             if isRateLimited() {
-                send(fd, status: 429, body: json(["error": "too many attempts, try again later"]))
+                send(fd, status: 429, body: json(["error": "trop de tentatives, réessayez plus tard"]))
                 return
             }
             if !tokenOK {
                 registerFailure()
                 Thread.sleep(forTimeInterval: failureDelay) // slow down brute force
-                send(fd, status: 401, body: json(["error": "invalid token"]))
+                send(fd, status: 401, body: json(["error": "jeton invalide"]))
                 return
             }
             resetFailures()
@@ -457,7 +457,7 @@ final class RemoteUnlockServer {
 
         case ("GET", "/status"):
             guard tokenOK else {
-                send(fd, status: 401, body: json(["error": "invalid token"])); return
+                send(fd, status: 401, body: json(["error": "jeton invalide"])); return
             }
             let lockedNow = currentLocked?() ?? lockedState
             send(fd, status: 200, contentType: "application/json",
@@ -469,7 +469,7 @@ final class RemoteUnlockServer {
 
         case ("POST", "/approve"):
             guard tokenOK else {
-                send(fd, status: 401, body: json(["error": "invalid token"])); return
+                send(fd, status: 401, body: json(["error": "jeton invalide"])); return
             }
             let message = onApprove?() ?? "approved"
             send(fd, status: 200, contentType: "application/json",
@@ -477,7 +477,7 @@ final class RemoteUnlockServer {
 
         case ("POST", "/deny"):
             guard tokenOK else {
-                send(fd, status: 401, body: json(["error": "invalid token"])); return
+                send(fd, status: 401, body: json(["error": "jeton invalide"])); return
             }
             print("RemoteUnlock: unlock request denied")
             send(fd, status: 200, contentType: "application/json",
@@ -485,11 +485,11 @@ final class RemoteUnlockServer {
 
         case ("POST", "/lock"):
             guard tokenOK else {
-                send(fd, status: 401, body: json(["error": "invalid token"])); return
+                send(fd, status: 401, body: json(["error": "jeton invalide"])); return
             }
             guard lockScreenEnabled else {
                 print("RemoteUnlock: lock request ignored (remote lock screen disabled)")
-                send(fd, status: 403, body: json(["error": "remote lock screen disabled"])); return
+                send(fd, status: 403, body: json(["error": "verrouillage à distance désactivé"])); return
             }
             // Respond before locking: the screen suspend may drop the connection.
             send(fd, status: 200, contentType: "application/json",
@@ -497,7 +497,7 @@ final class RemoteUnlockServer {
             lockScreen()
 
         default:
-            send(fd, status: 404, body: json(["error": "not found"]))
+            send(fd, status: 404, body: json(["error": "introuvable"]))
         }
     }
 
